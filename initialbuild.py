@@ -6,7 +6,7 @@ import re
 from urllib.parse import unquote
 
 
-async def db_builder(host: str, database: str, table: str = "Articles", create_table=False, user: str = "postgres",
+async def db_builder(host: str, database: str, table: str = "Articles", create_table=True, user: str = "postgres",
                      passfile=None, password: str = None, ssl=False, port: int = None):
     """Builds an article database, with all articles to date."""
     # Establishing DB Connection

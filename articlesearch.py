@@ -6,8 +6,8 @@ import datetime
 from urllib.parse import unquote
 
 
-async def connect(host: str, database: str, user: str,
-                  port: int, password: str, passfile=None, ssl=False):
+async def connect(host: str = "localhost", database: str = "postgres", user: str = "postgres",
+                  port: int = None, password: str = None, passfile=None, ssl=False):
     """Connects to a database"""
     connection = await asyncpg.connect(host=host, port=port, user=user, password=password,
                                        passfile=passfile, database=database, ssl=ssl)
