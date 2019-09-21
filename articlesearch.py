@@ -52,6 +52,8 @@ async def update():
         '{entry_title}', '{article}', '{date_article}', '{date_today}', '{text}');
         """)
     await connection.close()
+    if len(new_articles) > 0:
+        return len(new_articles), new_articles
 
 
 async def search(terms):
@@ -148,9 +150,16 @@ async def search(terms):
     return results[:limit], len(results)
 
 
-async def read(articleid):
+async def read(articleid=True, uid=False):
     """Returns the article with the matching ID.
     If the input is invalid or the article is not found, empty list is returned."""
+    if uid:
+        connection = await connect()
+        row = await connection.fetch(f"""
+        SELECT * FROM "Articles" WHERE "UID" = '{uid}';
+        """)
+        await connection.close()
+        return row
     try:
         articleid = int(articleid)
     except ValueError:
