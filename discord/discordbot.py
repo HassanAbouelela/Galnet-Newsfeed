@@ -7,9 +7,9 @@ import math
 import asyncio
 
 
-logger = logging.getLogger("discord")
+logger = logging.getLogger("galnet_discord")
 logger.setLevel(logging.INFO)
-handler = logging.FileHandler(filename="discord.log", encoding="utf-8", mode="w")
+handler = logging.FileHandler(filename="galnet_discord.log", encoding="utf-8", mode="w")
 handler.setFormatter(logging.Formatter("%(asctime)s:%(levelname)s:%(name)s: %(message)s"))
 logger.addHandler(handler)
 
@@ -30,6 +30,9 @@ async def on_command_error(ctx, error):
         await ctx.send(f"That is not a valid command. Try: {bot.get_user(624620325090361354).mention} help")
         return
     elif isinstance(error, commands.CheckFailure):
+        await ctx.send("You don't have permission to use this command.")
+        return
+    elif isinstance(error, commands.MissingPermissions):
         await ctx.send("You don't have permission to use this command.")
         return
     elif isinstance(error, commands.CommandInvokeError):
@@ -214,27 +217,29 @@ async def command_read(articleid: int):
 
 
 @bot.command()
-@commands.has_permissions(manage_channels=True)
 async def newschannel(ctx):
-    keep = True
-    with open("newschannels.txt", "a+") as newslist:
-        newslist.seek(0)
-        for line in newslist.readlines():
-            if str(ctx.channel.id) in str(line):
-                keep = False
-    if keep:
+    if ctx.message.guild is None or ctx.author.guild_permissions.manage_channels:
+        keep = True
         with open("newschannels.txt", "a+") as newslist:
-            newslist.write(f"{str(ctx.channel.id)}\n")
-        await ctx.send("Channel added to newslist.")
+            newslist.seek(0)
+            for line in newslist.readlines():
+                if str(ctx.channel.id) in str(line):
+                    keep = False
+        if keep:
+            with open("newschannels.txt", "a+") as newslist:
+                newslist.write(f"{str(ctx.channel.id)}\n")
+            await ctx.send("Channel added to newslist.")
+        else:
+            with open("newschannels.txt", "r") as old:
+                with open("tempchannelslist.txt", "w") as new:
+                    for line in old:
+                        if str(ctx.channel.id) not in str(line):
+                            new.write(line)
+            os.remove("newschannels.txt")
+            os.rename("tempchannelslist.txt", "newschannels.txt")
+            await ctx.send("Channel removed from newslist.")
     else:
-        with open("newschannels.txt", "r") as old:
-            with open("tempchannelslist.txt", "w") as new:
-                for line in old:
-                    if str(ctx.channel.id) not in str(line):
-                        new.write(line)
-        os.remove("newschannels.txt")
-        os.rename("tempchannelslist.txt", "newschannels.txt")
-        await ctx.send("Channel removed from newslist.")
+        await ctx.send("You don't have permission to use this command.")
 
 
 @bot.command()
