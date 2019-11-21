@@ -148,6 +148,14 @@ async def search(ctx, *, terms):
                 return
 
 
+@search.error
+async def search_error(ctx, error):
+    if isinstance(error, commands.CommandInvokeError):
+        return
+    else:
+        raise error
+
+
 @bot.command()
 async def count(ctx, *, terms):
     await ctx.send(f"{await articlesearch.count(terms)} results found.")

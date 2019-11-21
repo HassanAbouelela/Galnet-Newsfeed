@@ -68,7 +68,9 @@ async def search(terms):
     --before: Looks for articles that were written before a given date. Format: YYYY-MM-DD
     --after: Looks for articles that were written after a given date. Format: YYYY-MM-DD
     If both the --after & --before tags are given, the search is limited to the dates between both options."""
-
+    if ";" in terms:
+        terms.replace(";", "")
+        return "You can't use ';' in your searches!"
     terms = terms.split(" ")
     options = []
     words = []
@@ -90,10 +92,10 @@ async def search(terms):
                 except ValueError:
                     limit = 5
             elif "before" in option:
-                dateend = option[7:]
+                dateend = datetime.datetime.strptime(option[7:], "%Y-%m-%d")
                 options.append("before")
             elif "after" in option:
-                datebegin = option[6:]
+                datebegin = datetime.datetime.strptime(option[7:], "%Y-%m-%d")
                 options.append("after")
             elif option == "searchreverse":
                 searchorder = "ASC"
@@ -107,21 +109,21 @@ async def search(terms):
     if "before" in options and "after" in options:
         rows = await connection.fetch(f"""
         SELECT * FROM "Articles" 
-        WHERE "dateReleased" BETWEEN '{datebegin}' AND '{dateend}'
+        WHERE "dateReleased" BETWEEN $1 AND $2
         ORDER BY "dateReleased" {searchorder};
-        """)
+        """, datebegin, dateend)
     elif "before" in options:
         rows = await connection.fetch(f"""
                 SELECT * FROM "Articles" 
-                WHERE "dateReleased" < '{dateend}'
+                WHERE "dateReleased" < $1
                 ORDER BY "dateReleased" {searchorder};
-                """)
+                """, dateend)
     elif "after" in options:
         rows = await connection.fetch(f"""
                     SELECT * FROM "Articles" 
-                    WHERE "dateReleased" > '{datebegin}'
+                    WHERE "dateReleased" > $1
                     ORDER BY "dateReleased" {searchorder};
-                    """)
+                    """, datebegin)
     else:
         rows = await connection.fetch(f"""
         SELECT * FROM "Articles" ORDER BY "dateReleased" {searchorder};
@@ -155,9 +157,9 @@ async def read(articleid=True, uid=False):
     If the input is invalid or the article is not found, empty list is returned."""
     if uid:
         connection = await connect()
-        row = await connection.fetch(f"""
-        SELECT * FROM "Articles" WHERE "UID" = '{uid}';
-        """)
+        row = await connection.fetch("""
+        SELECT * FROM "Articles" WHERE "UID" = $1;
+        """, str(uid))
         await connection.close()
         return row
     try:
@@ -165,9 +167,9 @@ async def read(articleid=True, uid=False):
     except ValueError:
         return []
     connection = await connect()
-    row = await connection.fetch(f"""
-    SELECT * FROM "Articles" WHERE "ID" = {articleid};
-    """)
+    row = await connection.fetch("""
+    SELECT * FROM "Articles" WHERE "ID" = $1;
+    """, articleid)
     await connection.close()
     return row
 
@@ -181,6 +183,9 @@ async def count(options):
     --before: Counts the amount of articles before a given date. Format: YYYY-MM-DD
     --after: Counts the amount of articles after a given date. Format: YYYY-MM-DD
     If both the --after & --before tags are given, the search is limited to the dates between both options."""
+    if ";" in options:
+        options.replace(";", "")
+        return "You can't use ';'!"
     options = options.replace("--all", "--searchall")
     results = await search(f"--limitall {options}")
     return results[1]
