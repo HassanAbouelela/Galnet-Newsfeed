@@ -113,6 +113,7 @@ async def search(ctx, *, terms):
             final[i] = row['ID']
             i += 1
         message = await ctx.send(embed=embed)
+        ids = {ctx.message.id: message.id}
         number = 0
         if current_embed > 1:
             await message.add_reaction("\u23EA")
@@ -122,28 +123,32 @@ async def search(ctx, *, terms):
         if current_embed < embeds:
             await message.add_reaction("\u23E9")
 
-        def check(react, user):
-            str(react)
-            return user == ctx.author
+        def check(payload):
+            if payload.user_id != ctx.author.id:
+                return False
+            if payload.message_id != ids[ctx.message.id]:
+                return False
+            return True
+
         try:
-            reaction = await bot.wait_for("reaction_add", timeout=60.0, check=check)
-            if reaction[0].emoji == "\u23E9":
+            reaction = await bot.wait_for("raw_reaction_add", timeout=120.0, check=check)
+            if reaction.emoji.name == "\u23E9":
                 await message.delete()
                 current_embed += 1
                 start += 8
                 end += 8
-            elif reaction[0].emoji == "\u23EA":
+            elif reaction.emoji.name == "\u23EA":
                 await message.delete()
                 current_embed -= 1
                 start -= 8
                 end -= 8
-            elif reaction[0].emoji in numbers:
-                await ctx.send(embed=await command_read(final[numbers.index(reaction[0].emoji) + 1]))
+            elif reaction.emoji.name in numbers:
+                await ctx.send(embed=await command_read(final[numbers.index(reaction.emoji.name) + 1]))
                 await message.delete()
                 cont = False
-        except TimeoutError:
+        except asyncio.TimeoutError:
             try:
-                await message.clear_reaction()
+                await message.clear_reactions()
             except discord.Forbidden:
                 return
 

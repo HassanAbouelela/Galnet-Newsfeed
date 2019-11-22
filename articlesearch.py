@@ -84,7 +84,7 @@ async def search(terms):
     for item in terms:
         if "--" in item[:2]:
             option = item.replace("--", "")
-            if option == "limitall":
+            if option == "limitall" or option == "listall":
                 limit = 10000000
             elif "limit" in option:
                 try:
@@ -92,10 +92,22 @@ async def search(terms):
                 except ValueError:
                     limit = 5
             elif "before" in option:
-                dateend = datetime.datetime.strptime(option[7:], "%Y-%m-%d")
+                year = datetime.datetime.strptime(option[7:], "%Y-%m-%d").strftime("%Y")
+                # Convert date to format stored table
+                if int(year) < 3300:
+                    converted_year = str(3300 + (int(year) - 2014)) + option[11:]
+                    dateend = datetime.datetime.strptime(converted_year, "%Y-%m-%d")
+                else:
+                    dateend = datetime.datetime.strptime(option[7:], "%Y-%m-%d")
                 options.append("before")
             elif "after" in option:
-                datebegin = datetime.datetime.strptime(option[7:], "%Y-%m-%d")
+                year = datetime.datetime.strptime(option[6:], "%Y-%m-%d").strftime("%Y")
+                # Convert date to format stored in table
+                if int(year) < 3300:
+                    converted_year = str(3300 + (int(year) - 2014)) + option[10:]
+                    datebegin = datetime.datetime.strptime(converted_year, "%Y-%m-%d")
+                else:
+                    datebegin = datetime.datetime.strptime(option[6:], "%Y-%m-%d")
                 options.append("after")
             elif option == "searchreverse":
                 searchorder = "ASC"
