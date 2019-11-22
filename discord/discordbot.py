@@ -128,6 +128,12 @@ async def search(ctx, *, terms):
                 return False
             if payload.message_id != ids[ctx.message.id]:
                 return False
+            if payload.emoji.name in numbers:
+                pass
+            elif payload.emoji.name == "\u23E9" or payload.emoji.name == "\u23EA":
+                pass
+            else:
+                return False
             return True
 
         try:
