@@ -72,7 +72,6 @@ async def ping(ctx):
 async def stop(ctx):
     print("Bot has been turned off by: {}".format(ctx.message.author))
     logger.warning("Bot has been turned off by: {}".format(ctx.author))
-    await bg_task.cancel()
     await bot.close()
 
 
@@ -188,10 +187,16 @@ async def command_update():
         with open("newschannels.txt", "r") as file:
             if int(article_number) == 1:
                 for channelid in file.readlines():
-                    await bot.get_channel(int(channelid)).send("1 new article added")
+                    try:
+                        await bot.get_channel(int(channelid)).send("1 new article added")
+                    except AttributeError:
+                        pass # Need to change this to remove channel ID from list instead of passing to reduce cluter
             else:
                 for channelid in file.readlines():
-                    await bot.get_channel(int(channelid)).send(f"{article_number} new articles added")
+                    try:
+                        await bot.get_channel(int(channelid)).send(f"{article_number} new articles added")
+                    except AttributeError:
+                        pass
             for article in article_uids:
                 row = await articlesearch.read(uid=article)
                 row = row[0]
@@ -206,7 +211,10 @@ async def command_update():
                                       f" | Date Indexed: {row['dateAdded'].strftime('%d %b %Y')}")
                 file.seek(0)
                 for channelid in file.readlines():
-                    await bot.get_channel(int(channelid)).send(embed=embed)
+                    try:
+                        await bot.get_channel(int(channelid)).send(embed=embed)
+                    except AttributeError:
+                        pass
 
 
 @bot.command()
