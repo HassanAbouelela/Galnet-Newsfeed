@@ -42,7 +42,7 @@ Options:
 - content: Searches only in the content of an article, and ignores the title
 - searchall: Searches both title and content of an article
 - searchreverse: Searches the DB from the oldest article
-- limit: Returns only the latest results up to number given (default 5). Format: limit=XYZ
+- limit: Returns only the latest results up to the number given (default 5). Format: limit=XYZ
 - limitall: Returns all results found
 - before: Looks for articles that were written before a given date. Format: YYYY-MM-DD
 - after: Looks for articles that were written after a given date. Format: YYYY-MM-DD
@@ -53,14 +53,14 @@ Returns the record for the article with the given ID.\
 Takes string as input. Example: Passing "1" as input would return the record with ID number 1 from the database
 
 #### Count
-Counts the amount of articles that fit the given conditions.\
+Counts the number of articles that fit the given conditions.\
 Takes string as input. Example: "--content --before=3305-06-23"\
 Options:
-- title: Counts the amount of articles that contain a certain term in the title.
-- content: Counts the amount of articles that contain a certain term only in their content.
-- all: Counts the amount of articles that contain a certain term in either the title or the content.
-- before: Counts the amount of articles before a given date. Format: YYYY-MM-DD
-- after: Counts the amount of articles after a given date. Format: YYYY-MM-DD
+- title: Counts the number of articles that contain a certain term in the title.
+- content: Counts the number of articles that contain a certain term only in their content.
+- all: Counts the number of articles that contain a certain term in either the title or the content.
+- before: Counts the number of articles before a given date. Format: YYYY-MM-DD
+- after: Counts the number of articles after a given date. Format: YYYY-MM-DD
 If both the --after & --before tags are given, the search is limited to the dates between both options.
 
 ## Contact
