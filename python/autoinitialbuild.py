@@ -1,5 +1,5 @@
 import asyncio
-import initialbuild
+from python import initialbuild
 
 
 async def main():

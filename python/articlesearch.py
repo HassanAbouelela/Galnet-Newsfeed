@@ -4,11 +4,23 @@ import asyncpg
 import re
 import datetime
 from urllib.parse import unquote
+import json
 
 
 async def connect(host: str = "localhost", database: str = "postgres", user: str = "postgres",
-                  port: int = None, password: str = None, passfile=None, ssl=False):
+                  port: int = None, password: str = None, passfile=None, ssl: bool = False, use_file: bool = True):
     """Connects to a database"""
+    if use_file:
+        # Load Settings
+        with open("Settings.json") as file:
+            settings = json.load(file)
+        host = settings["host"]
+        database = settings["database"]
+        user = settings["user"]
+        passfile = settings["passfile"]
+        password = settings["password"]
+        ssl = settings["ssl"]
+        port = settings["port"]
     connection = await asyncpg.connect(host=host, port=port, user=user, password=password,
                                        passfile=passfile, database=database, ssl=ssl)
     return connection
@@ -16,6 +28,10 @@ async def connect(host: str = "localhost", database: str = "postgres", user: str
 
 async def update():
     """Looks for new articles."""
+    # Load Settings
+    with open("Settings.json") as file:
+        settings = json.load(file)
+    table = settings["table"]
     async with aiohttp.ClientSession() as session:
         async with session.get("https://community.elitedangerous.com/") as response:
             html = Bs4(await response.text(), "html.parser")
@@ -23,7 +39,7 @@ async def update():
     uids = []
     new_articles = []
     uid_records = await connection.fetch(f"""
-                SELECT "UID" FROM "Articles" ORDER BY "dateReleased" DESC LIMIT 50;
+                SELECT "UID" FROM "{table}" ORDER BY "dateReleased" DESC LIMIT 50;
                 """)
     for record in uid_records:
         uids.append(record["UID"])
@@ -48,7 +64,7 @@ async def update():
             date_article = datetime.datetime.strptime(date_article, "%d %b %Y").strftime("%Y-%m-%d")
         text = unquote(bs4.find_all("p")[1].get_text().replace("'", "''"))
         await connection.execute(f"""
-        INSERT INTO "Articles"("Title", "UID", "dateReleased", "dateAdded", "Text") VALUES (
+        INSERT INTO "{table}"("Title", "UID", "dateReleased", "dateAdded", "Text") VALUES (
         '{entry_title}', '{article}', '{date_article}', '{date_today}', '{text}');
         """)
     await connection.close()
@@ -68,6 +84,12 @@ async def search(terms):
     --before: Looks for articles that were written before a given date. Format: YYYY-MM-DD
     --after: Looks for articles that were written after a given date. Format: YYYY-MM-DD
     If both the --after & --before tags are given, the search is limited to the dates between both options."""
+
+    # Load Settings
+    with open("Settings.json") as file:
+        settings = json.load(file)
+    table = settings["table"]
+
     if ";" in terms:
         terms.replace(";", "")
         return "You can't use ';' in your searches!"
@@ -120,26 +142,27 @@ async def search(terms):
     connection = await connect()
     if "before" in options and "after" in options:
         rows = await connection.fetch(f"""
-        SELECT * FROM "Articles" 
+        SELECT * FROM "{table}" 
         WHERE "dateReleased" BETWEEN $1 AND $2
         ORDER BY "dateReleased" {searchorder};
         """, datebegin, dateend)
     elif "before" in options:
         rows = await connection.fetch(f"""
-                SELECT * FROM "Articles" 
+                SELECT * FROM "{table}" 
                 WHERE "dateReleased" < $1
                 ORDER BY "dateReleased" {searchorder};
                 """, dateend)
     elif "after" in options:
         rows = await connection.fetch(f"""
-                    SELECT * FROM "Articles" 
+                    SELECT * FROM "{table}" 
                     WHERE "dateReleased" > $1
                     ORDER BY "dateReleased" {searchorder};
                     """, datebegin)
     else:
         rows = await connection.fetch(f"""
-        SELECT * FROM "Articles" ORDER BY "dateReleased" {searchorder};
+        SELECT * FROM "{table}" ORDER BY "dateReleased" {searchorder};
         """)
+    await connection.close()
     if "searchall" in options:
         for row in rows:
             for word in words:
@@ -160,17 +183,22 @@ async def search(terms):
             for word in words:
                 if word in row["Title"].lower():
                     results.append(row)
-    await connection.close()
     return results[:limit], len(results)
 
 
 async def read(articleid=True, uid=False):
     """Returns the article with the matching ID.
     If the input is invalid or the article is not found, empty list is returned."""
+
+    # Load Settings
+    with open("Settings.json") as file:
+        settings = json.load(file)
+    table = settings["table"]
+
     if uid:
         connection = await connect()
-        row = await connection.fetch("""
-        SELECT * FROM "Articles" WHERE "UID" = $1;
+        row = await connection.fetch(f"""
+        SELECT * FROM "{table}" WHERE "UID" = $1;
         """, str(uid))
         await connection.close()
         return row
@@ -179,8 +207,8 @@ async def read(articleid=True, uid=False):
     except ValueError:
         return []
     connection = await connect()
-    row = await connection.fetch("""
-    SELECT * FROM "Articles" WHERE "ID" = $1;
+    row = await connection.fetch(f"""
+    SELECT * FROM "{table}" WHERE "ID" = $1;
     """, articleid)
     await connection.close()
     return row

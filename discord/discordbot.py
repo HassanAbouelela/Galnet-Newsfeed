@@ -1,4 +1,4 @@
-import articlesearch
+from python import articlesearch
 import discord as discord
 from discord.ext import commands
 import os
@@ -155,13 +155,13 @@ async def search(ctx, *, terms):
             try:
                 await message.clear_reactions()
             except discord.Forbidden:
-                return
+                pass
 
 
 @search.error
 async def search_error(ctx, error):
     if isinstance(error, commands.CommandInvokeError):
-        return
+        return ctx
     else:
         raise error
 
@@ -190,13 +190,23 @@ async def command_update():
                     try:
                         await bot.get_channel(int(channelid)).send("1 new article added")
                     except AttributeError:
-                        pass # Need to change this to remove channel ID from list instead of passing to reduce cluter
+                        with open("newschannels.txt", "r") as newslist:
+                            lines = newslist.readlines()
+                        with open("newschannels.txt", "w") as newslist:
+                            for line in lines:
+                                if line != channelid:
+                                    newslist.write(line)
             else:
                 for channelid in file.readlines():
                     try:
                         await bot.get_channel(int(channelid)).send(f"{article_number} new articles added")
                     except AttributeError:
-                        pass
+                        with open("newschannels.txt", "r") as newslist:
+                            lines = newslist.readlines()
+                        with open("newschannels.txt", "w") as newslist:
+                            for line in lines:
+                                if line != channelid:
+                                    newslist.write(line)
             for article in article_uids:
                 row = await articlesearch.read(uid=article)
                 row = row[0]

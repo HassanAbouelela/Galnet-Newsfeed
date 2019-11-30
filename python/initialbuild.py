@@ -4,6 +4,7 @@ from bs4 import BeautifulSoup as Bs4
 import datetime
 import re
 from urllib.parse import unquote
+import json
 
 
 async def db_builder(host: str, database: str, table: str = "Articles", create_table=True, user: str = "postgres",
@@ -63,3 +64,18 @@ async def db_builder(host: str, database: str, table: str = "Articles", create_t
             '{entry_title}', '{entry_uid}', '{date_article}', '{date_now}', '{text}');
             """)
     await connection.close()
+
+    # Dumping Settings For Future Use
+
+    with open("Settings.json", "w+") as settings_file:
+        settings = {
+            "host": host,
+            "database": database,
+            "table": table,
+            "user": user,
+            "passfile": passfile,
+            "password": password,
+            "ssl": ssl,
+            "port": port
+        }
+        json.dump(settings, settings_file, indent=2)
