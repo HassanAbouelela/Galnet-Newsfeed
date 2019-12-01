@@ -1,0 +1,12 @@
+{
+  "name": "Default Settings",
+  "version": "1.0",
+  "host": "localhost",
+  "database": "postgres",
+  "table": "Articles",
+  "user": "postgres",
+  "passfile": null,
+  "password": null,
+  "ssl": false,
+  "port": null
+}
