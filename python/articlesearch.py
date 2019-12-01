@@ -5,6 +5,18 @@ import re
 import datetime
 from urllib.parse import unquote
 import json
+import os
+
+
+async def fetch_settings():
+    async with aiohttp.ClientSession() as settings_session:
+        async with settings_session.get(
+                "https://raw.githubusercontent.com/Scaleios/Galnet-Newsfeed/9ec627af5ed08f274f41e636168edbc8200aa4ed"
+                "/python/Settings.json") as response:
+            if response.status == 200:
+                raw_json = json.loads(await response.read())
+    with open("Settings.json", "w+") as file:
+        json.dump(raw_json, file, indent=2)
 
 
 async def connect(host: str = "localhost", database: str = "postgres", user: str = "postgres",
@@ -12,6 +24,8 @@ async def connect(host: str = "localhost", database: str = "postgres", user: str
     """Connects to a database"""
     if use_file:
         # Load Settings
+        if not os.path.exists("Settings.json"):
+            await fetch_settings()
         with open("Settings.json") as file:
             settings = json.load(file)
         host = settings["host"]
@@ -29,6 +43,8 @@ async def connect(host: str = "localhost", database: str = "postgres", user: str
 async def update():
     """Looks for new articles."""
     # Load Settings
+    if not os.path.exists("Settings.json"):
+        await fetch_settings()
     with open("Settings.json") as file:
         settings = json.load(file)
     table = settings["table"]
@@ -86,6 +102,8 @@ async def search(terms):
     If both the --after & --before tags are given, the search is limited to the dates between both options."""
 
     # Load Settings
+    if not os.path.exists("Settings.json"):
+        await fetch_settings()
     with open("Settings.json") as file:
         settings = json.load(file)
     table = settings["table"]
@@ -191,6 +209,8 @@ async def read(articleid=True, uid=False):
     If the input is invalid or the article is not found, empty list is returned."""
 
     # Load Settings
+    if not os.path.exists("Settings.json"):
+        await fetch_settings()
     with open("Settings.json") as file:
         settings = json.load(file)
     table = settings["table"]
