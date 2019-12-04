@@ -153,8 +153,11 @@ async def search(ctx, *, terms):
                 cont = False
         except asyncio.TimeoutError:
             try:
+                await ctx.send(f"Are you still there {ctx.author.mention}? Your search timed out, please try again.")
                 await message.clear_reactions()
+                cont = False
             except discord.Forbidden:
+                cont = False
                 pass
 
 
