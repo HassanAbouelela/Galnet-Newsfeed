@@ -15,7 +15,7 @@ logger.addHandler(handler)
 
 
 TOKEN = ""
-bot = commands.Bot(command_prefix="<@624620325090361354> ", case_insensitive=True, help_command=None)
+bot = commands.Bot(command_prefix=commands.when_mentioned, case_insensitive=True, help_command=None)
 
 
 @bot.event
@@ -59,7 +59,7 @@ async def on_command_error(ctx, error):
 @bot.event
 async def on_ready():
     print("(Re)Started")
-    await bot.change_presence(activity=discord.Game(name="@Galnet News help"))
+    await bot.change_presence(activity=discord.Game(name=f"@{bot.user.name} News help"))
 
 
 @bot.command()
@@ -182,6 +182,7 @@ async def update(ctx):
 
 async def command_update():
     result = await articlesearch.update()
+
     if result:
         article_number = result[0]
         article_uids = result[1]
@@ -212,20 +213,20 @@ async def command_update():
                                     newslist.write(line)
             for article in article_uids:
                 row = await articlesearch.read(uid=article)
-                row = row[0]
-                embed = discord.Embed(
-                    title=row["Title"],
-                    url=f"http://community.elitedangerous.com/galnet/uid/{row['UID']}",
-                    description=row["Text"],
-                    color=discord.Color.orange()
-                )
-                embed.set_footer(text=f"ID: {row['ID']}"
-                                      f" | Date Released: {row['dateReleased'].strftime('%d %b %Y')}"
-                                      f" | Date Indexed: {row['dateAdded'].strftime('%d %b %Y')}")
+
                 file.seek(0)
                 for channelid in file.readlines():
                     try:
-                        await bot.get_channel(int(channelid)).send(embed=embed)
+                        embed = await command_read(0, row)
+                        try:
+                            await bot.get_channel(int(channelid)).send(embed=embed[0])
+                        except discord.HTTPException as e:
+                            import datetime
+                            await bot.get_user(386599446571384843).send("Error updating news base. Message too long,"
+                                                                        " could not fix"
+                                                                        " `CS{}-{}`"
+                                                                        ".\nText: {}. \nCode: {}.")\
+                                .format(datetime.datetime.now().strftime('%d%m%y%H%M'), article, e.text, e.code)
                     except AttributeError:
                         pass
 
@@ -233,27 +234,79 @@ async def command_update():
 @bot.command()
 async def read(ctx, articleid: int):
     result = await command_read(articleid)
+
     if result == "Nothing Found":
         await ctx.send(result)
     else:
-        await ctx.send(embed=result)
+        try:
+            await ctx.send(embed=result[0])
+        except discord.HTTPException:
+            import datetime
+            await ctx.send("An error was encountered. For now, feel free to read the article on the official website:"
+                           f"\nhttps://community.elitedangerous.com/galnet/uid/{result[1]}"
+                           "\n\nPlease submit a report at the issues page, and include this error code"
+                           f" `CS{datetime.datetime.now().strftime('%d%m%y%H%M')}-{articleid}` and a brief description"
+                           " of what happened:"
+                           "\n<https://github.com/Scaleios/Galnet-Newsfeed/issues/new?assignees=&labels"
+                           "=&template=bug_report.md&title=Bug>")
+            return
 
 
-async def command_read(articleid: int):
-    row = await articlesearch.read(articleid)
+async def command_read(articleid: int, command_up: tuple = False):
+    if not command_up:
+        row = await articlesearch.read(articleid)
+    else:
+        row = command_up
     if not row:
         return "Nothing Found"
     row = row[0]
+
+    # Making sure the message fits
+    remaining = 6000
+    sixk = False
+
+    title = row["Title"]
+    description = row["Text"]
+    footer = (f"ID: {row['ID']}"
+              f" | Date Released: {row['dateReleased'].strftime('%d %b %Y')}"
+              f" | Date Indexed: {row['dateAdded'].strftime('%d %b %Y')}")
+
+    if len(title) + len(description) + len(footer) > 6000:
+        if len(title) > 256:
+            if title[:250].rfind(" ") != -1:
+                title = title[:title[:250].rfind(" ")] + "..."
+            else:
+                title = title[:256]
+        remaining -= (len(title) + len(footer))
+        sixk = True
+
+    if len(title) > 256:
+        if title[:250].rfind(" ") != -1:
+            title = title[:title[:250].rfind(" ")] + "..."
+        else:
+            title = title[:256]
+
+    if len(description) + len(footer) > 2048 or sixk:
+        remaining_len = 2048 - len(footer)
+        if remaining < remaining_len:
+            pass
+        else:
+            remaining = remaining_len
+        if description[:remaining - 10].rfind(".") != -1:
+            description = description[:description[:remaining].rfind(".")] +\
+                          f" [[...]](http://community.elitedangerous.com/galnet/uid/{row['UID']})"
+        else:
+            description = description[:remaining - 5] +\
+                          f" [[...]](http://community.elitedangerous.com/galnet/uid/{row['UID']})"
+
     embed = discord.Embed(
-        title=row["Title"],
+        title=title,
         url=f"http://community.elitedangerous.com/galnet/uid/{row['UID']}",
-        description=row["Text"],
+        description=description,
         color=discord.Color.orange()
     )
-    embed.set_footer(text=f"ID: {row['ID']}"
-                          f" | Date Released: {row['dateReleased'].strftime('%d %b %Y')}"
-                          f" | Date Indexed: {row['dateAdded'].strftime('%d %b %Y')}")
-    return embed
+    embed.set_footer(text=footer)
+    return [embed, row["UID"]]
 
 
 @bot.command()
@@ -403,7 +456,7 @@ A full list is [available here.](https://github.com/Scaleios/Galnet-Newsfeed/wik
 async def sync():
     await bot.wait_until_ready()
     while not bot.is_closed():
-        await bot.change_presence(activity=discord.Game(name="@Galnet News help"))
+        await bot.change_presence(activity=discord.Game(name=f"@{bot.user.name} News help"))
         await command_update()
         await asyncio.sleep(900)
 
