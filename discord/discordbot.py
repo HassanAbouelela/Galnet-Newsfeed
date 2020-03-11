@@ -59,7 +59,7 @@ async def on_command_error(ctx, error):
 @bot.event
 async def on_ready():
     print("(Re)Started")
-    await bot.change_presence(activity=discord.Game(name=f"@{bot.user.name} News help"))
+    await bot.change_presence(activity=discord.Game(name=f"@{bot.user.name} help"))
 
 
 @bot.command()
@@ -97,6 +97,9 @@ async def search(ctx, *, terms):
     start = 0
     end = 8
     await temp_msg.delete()
+    if results[1] == 0:
+        await ctx.send("No results match your query")
+        return
     cont = True
     while cont:
         embed = discord.Embed(
@@ -148,12 +151,13 @@ async def search(ctx, *, terms):
                 start -= 8
                 end -= 8
             elif reaction.emoji.name in numbers:
-                await ctx.send(embed=await command_read(final[numbers.index(reaction.emoji.name) + 1]))
+                result = await command_read(final[numbers.index(reaction.emoji.name) + 1])
+                await ctx.send(embed=result[0])
                 await message.delete()
                 cont = False
         except asyncio.TimeoutError:
             try:
-                await ctx.send(f"Are you still there {ctx.author.mention}? Your search timed out, please try again.")
+                await ctx.send(f"Are you still there {ctx.author.mention}? Your search timed out, please start over.")
                 await message.clear_reactions()
                 cont = False
             except discord.Forbidden:
@@ -456,7 +460,7 @@ A full list is [available here.](https://github.com/Scaleios/Galnet-Newsfeed/wik
 async def sync():
     await bot.wait_until_ready()
     while not bot.is_closed():
-        await bot.change_presence(activity=discord.Game(name=f"@{bot.user.name} News help"))
+        await bot.change_presence(activity=discord.Game(name=f"@{bot.user.name} help"))
         await command_update()
         await asyncio.sleep(900)
 
