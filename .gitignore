@@ -1,5 +1,3 @@
-.idea/
 __pycache__/
-/newschannels.txt
 *.log
-/discord/newschannels.txt
+newschannels.txt

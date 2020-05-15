@@ -1,11 +1,67 @@
-from python import articlesearch
-import discord as discord
-from discord.ext import commands
-import os
-import logging
-import math
-import asyncio
+#  MIT License
+#
+#  Copyright (c) 2020 Scaleios
+#
+#  Permission is hereby granted, free of charge, to any person obtaining a copy
+#  of this software and associated documentation files (the "Software"), to deal
+#  in the Software without restriction, including without limitation the rights
+#  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+#  copies of the Software, and to permit persons to whom the Software is
+#  furnished to do so, subject to the following conditions:
+#
+#  The above copyright notice and this permission notice shall be included in all
+#  copies or substantial portions of the Software.
+#
+#  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+#  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+#  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+#  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+#  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+#  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+#  SOFTWARE.
 
+#  MIT License
+#
+#
+#  Permission is hereby granted, free of charge, to any person obtaining a copy
+#  of this software and associated documentation files (the "Software"), to deal
+#  in the Software without restriction, including without limitation the rights
+#  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+#  copies of the Software, and to permit persons to whom the Software is
+#  furnished to do so, subject to the following conditions:
+#
+#
+#  MIT License
+#
+#
+#  Permission is hereby granted, free of charge, to any person obtaining a copy
+#  of this software and associated documentation files (the "Software"), to deal
+#  in the Software without restriction, including without limitation the rights
+#  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+#  copies of the Software, and to permit persons to whom the Software is
+#  furnished to do so, subject to the following conditions:
+#
+#
+#  MIT License
+#
+#
+#  Permission is hereby granted, free of charge, to any person obtaining a copy
+#  of this software and associated documentation files (the "Software"), to deal
+#  in the Software without restriction, including without limitation the rights
+#  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+#  copies of the Software, and to permit persons to whom the Software is
+#  furnished to do so, subject to the following conditions:
+#
+#
+import asyncio
+import logging
+import os
+
+import discord as discord
+import math
+from discord.ext import commands
+
+from python import articlesearch
 
 logger = logging.getLogger("galnet_discord")
 logger.setLevel(logging.INFO)
@@ -47,11 +103,17 @@ async def on_command_error(ctx, error):
             raise error
         return
     elif isinstance(error, commands.MissingRequiredArgument):
-        if ctx.invoked_with == "search":
+        if ctx.invoked_with.lower() == "search":
             await ctx.send(f"That is an invalid query. Try: {bot.get_user(624620325090361354).mention} help search")
             return
+        elif ctx.invoked_with.lower() == "count":
+            await ctx.send(f"Count requires at least one search term."
+                           f" Try: {bot.get_user(624620325090361354).mention} help count")
+            return
         else:
-            pass
+            await ctx.send(f"A required argument is missing."
+                           f" Try: {bot.get_user(624620325090361354).mention} help {ctx.invoked_with.lower()}")
+            return
     logger.warning(error)
     raise error
 
@@ -169,8 +231,7 @@ async def search(ctx, *, terms):
 async def search_error(ctx, error):
     if isinstance(error, commands.CommandInvokeError):
         return ctx
-    else:
-        raise error
+    return
 
 
 @bot.command()
