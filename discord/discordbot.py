@@ -1,17 +1,13 @@
 #  MIT License
-#
-#  Copyright (c) 2020 Scaleios
-#
+#  Copyright (c) 2020 Hassan Abouelela
 #  Permission is hereby granted, free of charge, to any person obtaining a copy
 #  of this software and associated documentation files (the "Software"), to deal
 #  in the Software without restriction, including without limitation the rights
 #  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
 #  copies of the Software, and to permit persons to whom the Software is
 #  furnished to do so, subject to the following conditions:
-#
 #  The above copyright notice and this permission notice shall be included in all
 #  copies or substantial portions of the Software.
-#
 #  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 #  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 #  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -20,39 +16,6 @@
 #  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 #  SOFTWARE.
 
-#  MIT License
-#
-#
-#  Permission is hereby granted, free of charge, to any person obtaining a copy
-#  of this software and associated documentation files (the "Software"), to deal
-#  in the Software without restriction, including without limitation the rights
-#  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-#  copies of the Software, and to permit persons to whom the Software is
-#  furnished to do so, subject to the following conditions:
-#
-#
-#  MIT License
-#
-#
-#  Permission is hereby granted, free of charge, to any person obtaining a copy
-#  of this software and associated documentation files (the "Software"), to deal
-#  in the Software without restriction, including without limitation the rights
-#  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-#  copies of the Software, and to permit persons to whom the Software is
-#  furnished to do so, subject to the following conditions:
-#
-#
-#  MIT License
-#
-#
-#  Permission is hereby granted, free of charge, to any person obtaining a copy
-#  of this software and associated documentation files (the "Software"), to deal
-#  in the Software without restriction, including without limitation the rights
-#  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-#  copies of the Software, and to permit persons to whom the Software is
-#  furnished to do so, subject to the following conditions:
-#
-#
 import asyncio
 import logging
 import os
@@ -312,7 +275,7 @@ async def read(ctx, articleid: int):
                            "\n\nPlease submit a report at the issues page, and include this error code"
                            f" `CS{datetime.datetime.now().strftime('%d%m%y%H%M')}-{articleid}` and a brief description"
                            " of what happened:"
-                           "\n<https://github.com/Scaleios/Galnet-Newsfeed/issues/new?assignees=&labels"
+                           "\n<https://github.com/HassanAbouelela/Galnet-Newsfeed/issues/new?assignees=&labels"
                            "=&template=bug_report.md&title=Bug>")
             return
 
@@ -418,11 +381,11 @@ async def help(ctx, command: str = None):
     embed.add_field(name="Read", value="Opens an article for reading. Format: read (id)", inline=False)
     embed.add_field(name="NewsChannel", value="Marks the channel where this command is run as a news channel",
                     inline=False)
-    embed.add_field(name="Source", value="Links to [github page](https://github.com/Scaleios/Galnet-Newsfeed/wiki),"
-                                         " and [bot invite link](https://discordapp.com/oauth2/authorize?client"
+    embed.add_field(name="Source", value="Links to [github page](https://github.com/HassanAbouelela/Galnet-Newsfeed/"
+                                         "wiki), and [bot invite link](https://discordapp.com/oauth2/authorize?client"
                                          "_id=624620325090361354&permissions=379968&scope=bot)", inline=False)
     embed.add_field(name="Bugs", value="[Link to submit bugs/feedback.](https://github.com/"
-                                       "Scaleios/Galnet-Newsfeed/issues/new)", inline=False)
+                                       "HassanAbouelela/Galnet-Newsfeed/issues/new)", inline=False)
     embed.add_field(name="Help", value="This menu. Format: help (command)", inline=False)
     if command:
         command = command.lower().strip()
@@ -443,7 +406,7 @@ async def help(ctx, command: str = None):
             embed.add_field(name="Format", value="search --options keywords", inline=False)
             embed.add_field(name="Options", value="""
 All options must be preceded by (--).
-A full list is [available here.](https://github.com/Scaleios/Galnet-Newsfeed/wiki/Usage#search)
+A full list is [available here.](https://github.com/HassanAbouelela/Galnet-Newsfeed/wiki/Usage#search)
 - title: Searches only in the titles of the articles (default search mode)
 - content: Searches only in the content of an article, and ignores the title
 - searchall: Searches both title and content of an article
@@ -463,7 +426,7 @@ A full list is [available here.](https://github.com/Scaleios/Galnet-Newsfeed/wik
             embed.add_field(name="Format", value="count --options keywords", inline=False)
             embed.add_field(name="Options", value="""
 All options must be preceded by (--).
-A full list is [available here.](https://github.com/Scaleios/Galnet-Newsfeed/wiki/Usage#count)
+A full list is [available here.](https://github.com/HassanAbouelela/Galnet-Newsfeed/wiki/Usage#count)
 - title: Counts the amount of articles that contain a certain term in the title.
 - content: Counts the amount of articles that contain a certain term only in their content.
 - all: Counts the amount of articles that contain a certain term in either the title or the content.
@@ -496,7 +459,7 @@ A full list is [available here.](https://github.com/Scaleios/Galnet-Newsfeed/wik
         elif command == "source":
             embed = discord.Embed(
                 title="Source",
-                description="Links to [github page](https://github.com/Scaleios/Galnet-Newsfeed/wiki),"
+                description="Links to [github page](https://github.com/HassanAbouelela/Galnet-Newsfeed/wiki),"
                             " and [bot invite link](https://discordapp.com/oauth2/authorize?client"
                             "_id=624620325090361354&permissions=379968&scope=bot)",
                 color=discord.Color.orange()
@@ -505,7 +468,7 @@ A full list is [available here.](https://github.com/Scaleios/Galnet-Newsfeed/wik
             embed = discord.Embed(
                 title="Bugs",
                 description="[Link to submit bugs/feedback.](https://github.com/"
-                            "Scaleios/Galnet-Newsfeed/issues/new)",
+                            "HassanAbouelela/Galnet-Newsfeed/issues/new)",
                 color=discord.Color.orange()
             )
         elif command == "help":
