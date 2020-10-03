@@ -247,7 +247,7 @@ async def read(articleid=True, uid=False):
 
         result.append(row_dict)
 
-    return rows
+    return result
 
 
 async def count(options):
