@@ -12,6 +12,8 @@ import asyncpg
 from bs4 import BeautifulSoup as Bs4
 
 
+GAME_YEAR_OFFSET = 1286
+
 async def fetch_settings():
     async with aiohttp.ClientSession() as settings_session:
         async with settings_session.get(
@@ -32,15 +34,12 @@ async def connect(host: str = "localhost", database: str = "postgres", user: str
             await fetch_settings()
         with open("Settings.json") as file:
             settings = json.load(file)
-        host = settings["host"]
-        database = settings["database"]
-        user = settings["user"]
-        passfile = settings["passfile"]
-        password = settings["password"]
-        ssl = settings["ssl"]
-        port = settings["port"]
-    connection = await asyncpg.connect(host=host, port=port, user=user, password=password,
-                                       passfile=passfile, database=database, ssl=ssl)
+
+        settings.pop("name")
+        settings.pop("version")
+        settings.pop("table")
+
+    connection = await asyncpg.connect(**settings)
     return connection
 
 
@@ -76,16 +75,16 @@ async def update():
         entry_title = entry.get_text().strip().replace("'", "''")
         if entry_title == "" or entry_title is None:
             entry_title = "No Title Available"
+
         date_article = bs4.find("p").get_text()
-        if "29 FEB" in date_article:
-            date_clean = date_article[re.search("^29 FEB ", date_article).end():].replace("#", "")
-            date_article = f"{date_clean}-02-28"
-        else:
-            date_article = datetime.datetime.strptime(date_article, "%d %b %Y").strftime("%Y-%m-%d")
+        date_article = datetime.datetime.strptime(date_article, "%d %b %Y")
+        date_article.replace(year=(date_article.year - GAME_YEAR_OFFSET))
+        date_article = date_article.strftime("%Y-%m-%d")
+
         text = unquote(bs4.find_all("p")[1].get_text().replace("'", "''"))
         await connection.execute(f"""
-        INSERT INTO "{table}"("Title", "UID", "dateReleased", "dateAdded", "Text") VALUES (
-        '{entry_title}', '{article}', '{date_article}', '{date_today}', '{text}');
+            INSERT INTO "{table}"("Title", "UID", "dateReleased", "dateAdded", "Text") VALUES (
+            '{entry_title}', '{article}', '{date_article}', '{date_today}', '{text}');
         """)
     await connection.close()
     if len(new_articles) > 0:
@@ -138,8 +137,8 @@ async def search(terms):
             elif "before" in option:
                 year = datetime.datetime.strptime(option[7:], "%Y-%m-%d").strftime("%Y")
                 # Convert date to format stored table
-                if int(year) < 3300:
-                    converted_year = str(3300 + (int(year) - 2014)) + option[11:]
+                if int(year) >= 3300:
+                    converted_year = str(int(year) - GAME_YEAR_OFFSET) + option[11:]
                     dateend = datetime.datetime.strptime(converted_year, "%Y-%m-%d")
                 else:
                     dateend = datetime.datetime.strptime(option[7:], "%Y-%m-%d")
@@ -147,8 +146,8 @@ async def search(terms):
             elif "after" in option:
                 year = datetime.datetime.strptime(option[6:], "%Y-%m-%d").strftime("%Y")
                 # Convert date to format stored in table
-                if int(year) < 3300:
-                    converted_year = str(3300 + (int(year) - 2014)) + option[10:]
+                if int(year) >= 3300:
+                    converted_year = str(int(year) - GAME_YEAR_OFFSET) + option[10:]
                     datebegin = datetime.datetime.strptime(converted_year, "%Y-%m-%d")
                 else:
                     datebegin = datetime.datetime.strptime(option[6:], "%Y-%m-%d")
@@ -231,11 +230,19 @@ async def read(articleid=True, uid=False):
     except ValueError:
         return []
     connection = await connect()
-    row = await connection.fetch(f"""
+    rows = await connection.fetch(f"""
     SELECT * FROM "{table}" WHERE "ID" = $1;
     """, articleid)
     await connection.close()
-    return row
+
+    result = []
+    for row in rows:
+        row_dict = dict(row)
+        row_dict["dateReleased"] = row["dateReleased"].replace(year=(row["dateReleased"].year + GAME_YEAR_OFFSET))
+
+        result.append(row_dict)
+
+    return rows
 
 
 async def count(options):
