@@ -64,4 +64,4 @@ Options:
 If both the --after & --before tags are given, the search is limited to the dates between both options.
 
 ## Contact
-To get help, report an issue, or propose an idea, head to the [issues section](https://github.com/Scaleios/Galnet-Newsfeed/issues) on the [github page](https://github.com/Scaleios/Galnet-Newsfeed/).
+To get help, report an issue, or propose an idea, head to the [issues section](https://github.com/HassanAbouelela/Galnet-Newsfeed/issues) on the [github page](https://github.com/HassanAbouelela/Galnet-Newsfeed/).
