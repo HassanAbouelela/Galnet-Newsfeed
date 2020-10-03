@@ -2,9 +2,11 @@
 #  Licensed under the MIT License
 
 import asyncio
+import json
 import logging
 import os
 
+import aiohttp
 import discord as discord
 import math
 from discord.ext import commands
@@ -18,8 +20,36 @@ handler.setFormatter(logging.Formatter("%(asctime)s:%(levelname)s:%(name)s: %(me
 logger.addHandler(handler)
 
 
-TOKEN = ""
-bot = commands.Bot(command_prefix=commands.when_mentioned, case_insensitive=True, help_command=None)
+# Loading Settings
+def download_settings():
+    async def fetch_settings():
+        async with aiohttp.ClientSession() as settings_session:
+            async with settings_session.get(
+                    "") as response:
+                if response.status == 200:
+                    raw_json = json.loads(await response.read())
+        with open("BotSettings.json", "w+") as file:
+            json.dump(raw_json, file, indent=2)
+
+    asyncio.get_event_loop().run_until_complete(fetch_settings())
+
+
+if not os.path.exists("BotSettings.json"):
+    download_settings()
+    raise RuntimeError("Please fill in bot settings file: `BotSettings.json`")
+
+
+with open("BotSettings.json") as settings_file:
+    settings = json.load(settings_file)
+    if not all(key in settings.keys() for key in ("Maintainer-ID", "TOKEN", "PREFIX")):
+        print(RuntimeWarning("Error reading bot settings file."))
+    if settings["PREFIX"] == "_mention":
+        settings["PREFIX"] = commands.when_mentioned
+    else:
+        settings["PREFIX"] = settings["PREFIX"].split(",")
+
+
+bot = commands.Bot(command_prefix=settings["PREFIX"], case_insensitive=True, help_command=None)
 
 
 @bot.event
@@ -31,7 +61,11 @@ async def on_command_error(ctx, error):
             await ctx.send(f"{error.args}. Please send this to the developer.")
         return
     elif isinstance(error, commands.CommandNotFound):
-        await ctx.send(f"That is not a valid command. Try: {bot.get_user(624620325090361354).mention} help")
+        if settings["PREFIX"] == commands.when_mentioned:
+            await ctx.send(f"That is not a valid command. Try: {bot.get_user(bot.user.id).mention} help")
+        else:
+            await ctx.send(f"That is not a valid command. Try: {settings['PREFIX']}help")
+
         return
     elif isinstance(error, commands.CheckFailure):
         await ctx.send("You don't have permission to use this command.")
@@ -52,24 +86,42 @@ async def on_command_error(ctx, error):
         return
     elif isinstance(error, commands.MissingRequiredArgument):
         if ctx.invoked_with.lower() == "search":
-            await ctx.send(f"That is an invalid query. Try: {bot.get_user(624620325090361354).mention} help search")
+            if settings["PREFIX"] == commands.when_mentioned:
+                await ctx.send(f"That is an invalid query. Try: {bot.get_user(bot.user.id).mention} help search")
+            else:
+                await ctx.send(f"That is an invalid query. Try: {settings['PREFIX']}help search")
             return
+
         elif ctx.invoked_with.lower() == "count":
-            await ctx.send(f"Count requires at least one search term."
-                           f" Try: {bot.get_user(624620325090361354).mention} help count")
+            if settings["PREFIX"] == commands.when_mentioned:
+                await ctx.send(f"Count requires at least one search term."
+                               f" Try: {bot.get_user(bot.user.id).mention} help count")
+            else:
+                await ctx.send(f"Count requires at least one search term."
+                               f" Try: {settings['PREFIX']}help count")
+
             return
+
         else:
-            await ctx.send(f"A required argument is missing."
-                           f" Try: {bot.get_user(624620325090361354).mention} help {ctx.invoked_with.lower()}")
+            if settings["PREFIX"] == commands.when_mentioned:
+                await ctx.send(f"A required argument is missing."
+                               f" Try: {bot.get_user(bot.user.id).mention} help {ctx.invoked_with.lower()}")
+            else:
+                await ctx.send(f"A required argument is missing."
+                               f" Try: {settings['PREFIX']}help {ctx.invoked_with.lower()}")
+
             return
-    logger.warning(error)
+    logger.error(error)
     raise error
 
 
 @bot.event
 async def on_ready():
     print("(Re)Started")
-    await bot.change_presence(activity=discord.Game(name=f"@{bot.user.name} help"))
+    if settings["PREFIX"] == commands.when_mentioned:
+        await bot.change_presence(activity=discord.Game(name=f"@{bot.user.name} help"))
+    else:
+        await bot.change_presence(activity=discord.Game(name=f"{settings['PREFIX']}help"))
 
 
 @bot.command()
@@ -235,11 +287,10 @@ async def command_update():
                             await bot.get_channel(int(channelid)).send(embed=embed[0])
                         except discord.HTTPException as e:
                             import datetime
-                            await bot.get_user(386599446571384843).send("Error updating news base. Message too long,"
-                                                                        " could not fix"
-                                                                        " `CS{}-{}`"
-                                                                        ".\nText: {}. \nCode: {}.")\
-                                .format(datetime.datetime.now().strftime('%d%m%y%H%M'), article, e.text, e.code)
+                            await bot.get_user(int(settings["Maintainer-ID"])).send(
+                                "Error updating news base. Message too long, could not fix `CS{}-{}`"
+                                " .\nText: {}. \nCode: {}."
+                            ).format(datetime.datetime.now().strftime('%d%m%y%H%M'), article, e.text, e.code)
                     except AttributeError:
                         pass
 
@@ -475,4 +526,4 @@ async def sync():
 
 
 bg_task = bot.loop.create_task(sync())
-bot.run(TOKEN)
+bot.run(settings["TOKEN"])

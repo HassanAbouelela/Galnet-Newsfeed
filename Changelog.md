@@ -19,4 +19,5 @@
    to avoid a rebuild.
  - Settings files have been modified, and will be modified for every version.
    Be sure to back up your settings, and update them.
- 
+ - A new settings file has been added to the discord bot (`BotSettings.json`).
+   Be sure to fill it in.
