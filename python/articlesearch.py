@@ -20,7 +20,7 @@ async def fetch_settings():
         async with aiohttp.ClientSession() as settings_session:
             async with settings_session.get(
                     "https://raw.githubusercontent.com/HassanAbouelela/Galnet-Newsfeed/"
-                    "d75fb12bd48c23b1fc1acdecf240857df231e3b1/python/Settings.json") as response:
+                    "984006612ae0a97d6221594c0a72e37ae04beeba/python/Settings.json") as response:
                 if response.status == 200:
                     raw_json = json.loads(await response.read())
         with open("Settings.json", "w+") as file:
