@@ -14,15 +14,19 @@ from bs4 import BeautifulSoup as Bs4
 
 GAME_YEAR_OFFSET = 1286
 
+
 async def fetch_settings():
-    async with aiohttp.ClientSession() as settings_session:
-        async with settings_session.get(
-                "https://raw.githubusercontent.com/HassanAbouelela/Galnet-Newsfeed/"
-                "d75fb12bd48c23b1fc1acdecf240857df231e3b1/python/Settings.json") as response:
-            if response.status == 200:
-                raw_json = json.loads(await response.read())
-    with open("Settings.json", "w+") as file:
-        json.dump(raw_json, file, indent=2)
+    if not os.path.exists("Settings.json"):
+        async with aiohttp.ClientSession() as settings_session:
+            async with settings_session.get(
+                    "https://raw.githubusercontent.com/HassanAbouelela/Galnet-Newsfeed/"
+                    "d75fb12bd48c23b1fc1acdecf240857df231e3b1/python/Settings.json") as response:
+                if response.status == 200:
+                    raw_json = json.loads(await response.read())
+        with open("Settings.json", "w+") as file:
+            json.dump(raw_json, file, indent=2)
+    with open("Settings.json") as file:
+        return json.load(file)
 
 
 async def connect(host: str = "localhost", database: str = "postgres", user: str = "postgres",
@@ -30,26 +34,25 @@ async def connect(host: str = "localhost", database: str = "postgres", user: str
     """Connects to a database"""
     if use_file:
         # Load Settings
-        if not os.path.exists("Settings.json"):
-            await fetch_settings()
-        with open("Settings.json") as file:
-            settings = json.load(file)
+        settings = await fetch_settings()
 
-        settings.pop("name")
-        settings.pop("version")
-        settings.pop("table")
+        host = settings["host"]
+        database = settings["database"]
+        user = settings["user"]
+        passfile = settings["passfile"]
+        password = settings["password"]
+        ssl = settings["ssl"]
+        port = settings["port"]
 
-    connection = await asyncpg.connect(**settings)
-    return connection
+    return await asyncpg.connect(host=host, port=port, user=user, password=password, passfile=passfile,
+                                 database=database, ssl=ssl)
 
 
 async def update():
     """Looks for new articles."""
     # Load Settings
-    if not os.path.exists("Settings.json"):
-        await fetch_settings()
-    with open("Settings.json") as file:
-        settings = json.load(file)
+    settings = await fetch_settings()
+    
     table = settings["table"]
     async with aiohttp.ClientSession() as session:
         async with session.get("https://community.elitedangerous.com/") as response:
@@ -66,7 +69,15 @@ async def update():
         entry = entry.find("a").get("href")[re.search("^/galnet/uid/", entry.find("a").get("href")).end():]
         if entry not in uids:
             new_articles.append(entry)
+
+    added_uids = []
     for article in new_articles:
+        # Catch repeat articles
+        if article in added_uids:
+            continue
+
+        added_uids.append(article)
+
         date_today = datetime.datetime.now().strftime("%Y-%m-%d")
         async with aiohttp.ClientSession() as session:
             async with session.get(f"https://community.elitedangerous.com/galnet/uid/{article}") as response:
@@ -105,10 +116,7 @@ async def search(terms):
     If both the --after & --before tags are given, the search is limited to the dates between both options."""
 
     # Load Settings
-    if not os.path.exists("Settings.json"):
-        await fetch_settings()
-    with open("Settings.json") as file:
-        settings = json.load(file)
+    settings = await fetch_settings()
     table = settings["table"]
 
     if ";" in terms:
@@ -212,10 +220,7 @@ async def read(articleid=True, uid=False):
     If the input is invalid or the article is not found, empty list is returned."""
 
     # Load Settings
-    if not os.path.exists("Settings.json"):
-        await fetch_settings()
-    with open("Settings.json") as file:
-        settings = json.load(file)
+    settings = await fetch_settings()
     table = settings["table"]
 
     if uid:
@@ -260,3 +265,57 @@ async def count(options):
     options = options.replace("--all", "--searchall")
     results = await search(f"--limitall {options}")
     return results[1]
+
+
+async def clean_up():
+    """Remove articles with duplicate UUIDs from database, and update all IDs."""
+    # Load Settings
+    settings = await fetch_settings()
+    
+    # Deleting repeats
+    connection = await connect()
+    repeats = await connection.fetch(f"""
+        SELECT * FROM "{settings["table"]}"
+        WHERE "UID" IN (SELECT "UID" FROM "{settings["table"]}" GROUP BY "UID" HAVING COUNT(*) > 1);
+    """)
+
+    uniques = {}
+    removed = []
+
+    for article in repeats:
+        if article["UID"] in uniques.keys():
+            removed.append(uniques[article["UID"]]["ID"])
+        uniques[article["UID"]] = article
+
+    for article_id in removed:
+        await connection.execute(f"""
+            DELETE FROM "{settings["table"]}"
+            WHERE "ID" = {article_id};
+        """)
+
+    # Fixing IDs
+    all_articles = await connection.fetch(f"""
+        SELECT * FROM "{settings["table"]}";
+    """)
+
+    await connection.execute(f"""
+        DELETE FROM "{settings["table"]}";
+    """)
+
+    article_id = 1
+    for article in all_articles:
+        text = unquote(article["Text"].replace("'", "''"))
+        date = article["dateReleased"].replace(year=(article["dateReleased"].year - GAME_YEAR_OFFSET))
+        title = article["Title"].strip().replace("'", "''")
+        if title == "" or title is None:
+            title = "No Title Available"
+
+        await connection.execute(f"""
+            INSERT INTO "{settings["table"]}" ("ID", "Title", "UID", "dateReleased", "dateAdded", "Text")
+            VALUES ({article_id}, '{title}', '{article["UID"]}', '{date}',
+            '{article["dateAdded"]}', '{text}');
+        """)
+
+        article_id += 1
+
+    await connection.close()
