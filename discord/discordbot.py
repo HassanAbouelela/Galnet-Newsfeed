@@ -331,7 +331,7 @@ async def command_read(articleid: int, command_up: tuple = False):
     sixk = False
 
     title = row["Title"]
-    description = row["Text"]
+    description = row["Text"].replace("\n", "\n\n")
     footer = (f"ID: {row['ID']}"
               f" | Date Released: {row['dateReleased'].strftime('%d %b %Y')}"
               f" | Date Indexed: {row['dateAdded'].strftime('%d %b %Y')}")
