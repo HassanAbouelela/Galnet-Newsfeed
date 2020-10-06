@@ -15,6 +15,26 @@ from bs4 import BeautifulSoup as Bs4
 GAME_YEAR_OFFSET = 1286
 
 
+async def upgrade():
+    old_settings = await fetch_settings()
+    try:
+        old = old_settings["version"]
+    except KeyError:
+        old = "1.0"
+
+    os.remove("Settings.json")
+
+    new_settings = await fetch_settings()
+    for key in old_settings.keys():
+        if key in new_settings.keys():
+            new_settings[key] = old_settings[key]
+
+    new_settings["previous version"] = old
+
+    with open("Settings.json", "w") as settings_file:
+        json.dump(new_settings, settings_file, indent=2)
+
+
 async def fetch_settings():
     if not os.path.exists("Settings.json"):
         async with aiohttp.ClientSession() as settings_session:
@@ -62,7 +82,7 @@ async def update():
     new_articles = []
     uid_records = await connection.fetch(f"""
                 SELECT "UID" FROM "{table}" ORDER BY "dateReleased" DESC LIMIT 50;
-                """)
+    """)
     for record in uid_records:
         uids.append(record["UID"])
     for entry in html.find_all("h3", {"class": "hiLite galnetNewsArticleTitle"}):
@@ -89,7 +109,8 @@ async def update():
 
         date_article = bs4.find("p").get_text()
         date_article = datetime.datetime.strptime(date_article, "%d %b %Y")
-        date_article.replace(year=(date_article.year - GAME_YEAR_OFFSET))
+        if date_article.year >= 3300:
+            date_article = date_article.replace(year=(date_article.year - GAME_YEAR_OFFSET))
         date_article = date_article.strftime("%Y-%m-%d")
 
         text = unquote(bs4.find_all("p")[1].get_text().replace("'", "''"))
@@ -271,51 +292,75 @@ async def clean_up():
     """Remove articles with duplicate UUIDs from database, and update all IDs."""
     # Load Settings
     settings = await fetch_settings()
-    
-    # Deleting repeats
-    connection = await connect()
-    repeats = await connection.fetch(f"""
-        SELECT * FROM "{settings["table"]}"
-        WHERE "UID" IN (SELECT "UID" FROM "{settings["table"]}" GROUP BY "UID" HAVING COUNT(*) > 1);
-    """)
 
-    uniques = {}
-    removed = []
+    try:
+        if settings["previous version"] == settings["version"]:
+            await upgrade()
+    except KeyError:
+        await upgrade()
 
-    for article in repeats:
-        if article["UID"] in uniques.keys():
-            removed.append(uniques[article["UID"]]["ID"])
-        uniques[article["UID"]] = article
+    old_version = settings["previous version"]
+    new_version = settings["version"]
 
-    for article_id in removed:
-        await connection.execute(f"""
-            DELETE FROM "{settings["table"]}"
-            WHERE "ID" = {article_id};
+    if float(new_version) <= 1.2:
+        # Deleting repeats
+        connection = await connect()
+        repeats = await connection.fetch(f"""
+            SELECT * FROM "{settings["table"]}"
+            WHERE "UID" IN (SELECT "UID" FROM "{settings["table"]}" GROUP BY "UID" HAVING COUNT(*) > 1);
         """)
 
-    # Fixing IDs
-    all_articles = await connection.fetch(f"""
-        SELECT * FROM "{settings["table"]}";
-    """)
+        uniques = {}
+        removed = []
 
-    await connection.execute(f"""
-        DELETE FROM "{settings["table"]}";
-    """)
+        for article in repeats:
+            if article["UID"] in uniques.keys():
+                removed.append(uniques[article["UID"]]["ID"])
+            uniques[article["UID"]] = article
 
-    article_id = 1
-    for article in all_articles:
-        text = unquote(article["Text"].replace("'", "''"))
-        date = article["dateReleased"].replace(year=(article["dateReleased"].year - GAME_YEAR_OFFSET))
-        title = article["Title"].strip().replace("'", "''")
-        if title == "" or title is None:
-            title = "No Title Available"
+        for article_id in removed:
+            await connection.execute(f"""
+                DELETE FROM "{settings["table"]}"
+                WHERE "ID" = {article_id};
+            """)
 
-        await connection.execute(f"""
-            INSERT INTO "{settings["table"]}" ("ID", "Title", "UID", "dateReleased", "dateAdded", "Text")
-            VALUES ({article_id}, '{title}', '{article["UID"]}', '{date}',
-            '{article["dateAdded"]}', '{text}');
+        # Fixing IDs
+        all_articles = await connection.fetch(f"""
+            SELECT * FROM "{settings["table"]}";
         """)
 
-        article_id += 1
+        # Empty Table
+        await connection.execute(f"""
+            DELETE FROM "{settings["table"]}";
+        """)
 
-    await connection.close()
+        # Reset ID Column
+        await connection.execute(f"""
+            ALTER SEQUENCE "{settings["table"]}_ID_seq"
+            RESTART WITH 1
+        """)
+
+        # Reinsert Articles
+        for article in all_articles:
+            text = unquote(article["Text"].replace("'", "''"))
+
+            date = article["dateReleased"]
+            if date.year >= 3300:
+                date = date.replace(year=(article["dateReleased"].year - GAME_YEAR_OFFSET))
+
+            title = article["Title"].strip().replace("'", "''")
+            if title == "" or title is None:
+                title = "No Title Available"
+
+            await connection.execute(f"""
+                INSERT INTO "{settings["table"]}" ("Title", "UID", "dateReleased", "dateAdded", "Text")
+                VALUES ('{title}', '{article["UID"]}', '{date}', '{article["dateAdded"]}', '{text}');
+            """)
+
+        await connection.close()
+
+    settings = await fetch_settings()
+    settings["previous version"] = settings["version"]
+
+    with open("Settings.json", "w") as file:
+        json.dump(settings, file, indent=2)
