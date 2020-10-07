@@ -26,7 +26,7 @@ def download_settings():
         async with aiohttp.ClientSession() as settings_session:
             async with settings_session.get(
                     "https://raw.githubusercontent.com/HassanAbouelela/Galnet-Newsfeed/"
-                    "8a3a40099de1a6258d8ba25882de8f08125a35a8/discord/BotSettings.json") as response:
+                    "4499a01e6b5a679b807e95697effafde02f8d5e0/discord/BotSettings.json") as response:
                 if response.status == 200:
                     raw_json = json.loads(await response.read())
         with open("BotSettings.json", "w+") as file:
