@@ -11,6 +11,7 @@ All commands work the same if run directly from the python scripts, or through t
 
 ## Requirements
 Python: All requirements in requirements.txt
+
 [Postgres database](https://www.postgresql.org/) (Just a [basic setup](#postgres-setup) is required. More on that later.)
 
 ## Setup
