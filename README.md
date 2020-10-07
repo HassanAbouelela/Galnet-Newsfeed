@@ -1,8 +1,9 @@
 # Galnet Newsfeed
-An open source program to get ED galnet news from the [game's website.](https://community.elitedangerous.com/)
+A fan-made, open source program to get ED galnet news from the [game's website.](https://community.elitedangerous.com/)
  
 ## Description
-Collects, indexes, and searches Galnet News Articles.\
+Collects, indexes, and searches Galnet News Articles.
+
 [A discord bot is available](https://discordapp.com/api/oauth2/authorize?client_id=624620325090361354&permissions=379968&scope=bot).
 
 ## Usage
