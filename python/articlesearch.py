@@ -11,7 +11,6 @@ import aiohttp
 import asyncpg
 from bs4 import BeautifulSoup as Bs4
 
-
 GAME_YEAR_OFFSET = 1286
 
 
@@ -22,9 +21,9 @@ async def upgrade():
     except KeyError:
         old = "1.0"
 
+    new_settings = await fetch_settings()
     os.remove("Settings.json")
 
-    new_settings = await fetch_settings()
     for key in old_settings.keys():
         if key in new_settings.keys():
             new_settings[key] = old_settings[key]
@@ -40,9 +39,10 @@ async def fetch_settings():
         async with aiohttp.ClientSession() as settings_session:
             async with settings_session.get(
                     "https://raw.githubusercontent.com/HassanAbouelela/Galnet-Newsfeed/"
-                    "984006612ae0a97d6221594c0a72e37ae04beeba/python/Settings.json") as response:
+                    "8a3a40099de1a6258d8ba25882de8f08125a35a8/python/Settings.json") as response:
                 if response.status == 200:
                     raw_json = json.loads(await response.read())
+
         with open("Settings.json", "w+") as file:
             json.dump(raw_json, file, indent=2)
     with open("Settings.json") as file:
@@ -98,7 +98,7 @@ async def update():
 
         added_uids.append(article)
 
-        date_today = datetime.datetime.now().strftime("%Y-%m-%d")
+        date_today = datetime.datetime.now()
         async with aiohttp.ClientSession() as session:
             async with session.get(f"https://community.elitedangerous.com/galnet/uid/{article}") as response:
                 bs4 = Bs4(await response.text(), "html.parser")
@@ -111,13 +111,14 @@ async def update():
         date_article = datetime.datetime.strptime(date_article, "%d %b %Y")
         if date_article.year >= 3300:
             date_article = date_article.replace(year=(date_article.year - GAME_YEAR_OFFSET))
-        date_article = date_article.strftime("%Y-%m-%d")
 
         text = unquote(bs4.find_all("p")[1].get_text().replace("'", "''"))
+
         await connection.execute(f"""
             INSERT INTO "{table}"("Title", "UID", "dateReleased", "dateAdded", "Text") VALUES (
-            '{entry_title}', '{article}', '{date_article}', '{date_today}', '{text}');
-        """)
+            $1, $2, $3, $4, $5);
+            """, entry_title, article, date_article, date_today, text)
+
     await connection.close()
     if len(new_articles) > 0:
         return len(new_articles), new_articles
@@ -164,19 +165,19 @@ async def search(terms):
                 except ValueError:
                     limit = 5
             elif "before" in option:
-                year = datetime.datetime.strptime(option[7:], "%Y-%m-%d").strftime("%Y")
+                year = datetime.datetime.strptime(option[7:], "%Y-%m-%d").year
                 # Convert date to format stored table
-                if int(year) >= 3300:
-                    converted_year = str(int(year) - GAME_YEAR_OFFSET) + option[11:]
+                if year >= 3300:
+                    converted_year = str(year - GAME_YEAR_OFFSET) + option[11:]
                     dateend = datetime.datetime.strptime(converted_year, "%Y-%m-%d")
                 else:
                     dateend = datetime.datetime.strptime(option[7:], "%Y-%m-%d")
                 options.append("before")
             elif "after" in option:
-                year = datetime.datetime.strptime(option[6:], "%Y-%m-%d").strftime("%Y")
+                year = datetime.datetime.strptime(option[6:], "%Y-%m-%d").year
                 # Convert date to format stored in table
-                if int(year) >= 3300:
-                    converted_year = str(int(year) - GAME_YEAR_OFFSET) + option[10:]
+                if year >= 3300:
+                    converted_year = str(year - GAME_YEAR_OFFSET) + option[10:]
                     datebegin = datetime.datetime.strptime(converted_year, "%Y-%m-%d")
                 else:
                     datebegin = datetime.datetime.strptime(option[6:], "%Y-%m-%d")
@@ -329,33 +330,44 @@ async def clean_up():
             SELECT * FROM "{settings["table"]}";
         """)
 
-        # Empty Table
-        await connection.execute(f"""
-            DELETE FROM "{settings["table"]}";
-        """)
+        transaction = connection.transaction()
+        await transaction.start()
 
-        # Reset ID Column
-        await connection.execute(f"""
-            ALTER SEQUENCE "{settings["table"]}_ID_seq"
-            RESTART WITH 1
-        """)
-
-        # Reinsert Articles
-        for article in all_articles:
-            text = unquote(article["Text"].replace("'", "''"))
-
-            date = article["dateReleased"]
-            if date.year >= 3300:
-                date = date.replace(year=(article["dateReleased"].year - GAME_YEAR_OFFSET))
-
-            title = article["Title"].strip().replace("'", "''")
-            if title == "" or title is None:
-                title = "No Title Available"
-
+        try:
+            # Empty Table
             await connection.execute(f"""
-                INSERT INTO "{settings["table"]}" ("Title", "UID", "dateReleased", "dateAdded", "Text")
-                VALUES ('{title}', '{article["UID"]}', '{date}', '{article["dateAdded"]}', '{text}');
+                DELETE FROM "{settings["table"]}";
             """)
+
+            # Reset ID Column
+            await connection.execute(f"""
+                ALTER SEQUENCE "{settings["table"]}_ID_seq"
+                RESTART WITH 1
+            """)
+
+            # Reinsert Articles
+            for article in all_articles:
+                text = unquote(article["Text"].replace("'", "''"))
+
+                date_released = article["dateReleased"]
+                if date_released.year >= 3300:
+                    date_released = date_released.replace(year=(article["dateReleased"].year - GAME_YEAR_OFFSET))
+
+                title = article["Title"].strip().replace("'", "''")
+                if title == "" or title is None:
+                    title = "No Title Available"
+
+                await connection.execute(f"""
+                    INSERT INTO "{settings["table"]}" ("Title", "UID", "dateReleased", "dateAdded", "Text")
+                    VALUES ($1, $2, $3, $4, $5);
+                """, title, article["UID"], date_released, article["dateAdded"], text)
+        except Exception as e:
+            print("\n\nProcess failed due to exception. Reverting.\n\n")
+            await transaction.rollback()
+            raise e
+
+        else:
+            await transaction.commit()
 
         await connection.close()
 

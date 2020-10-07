@@ -26,7 +26,7 @@ def download_settings():
         async with aiohttp.ClientSession() as settings_session:
             async with settings_session.get(
                     "https://raw.githubusercontent.com/HassanAbouelela/Galnet-Newsfeed/"
-                    "984006612ae0a97d6221594c0a72e37ae04beeba/discord/BotSettings.json") as response:
+                    "8a3a40099de1a6258d8ba25882de8f08125a35a8/discord/BotSettings.json") as response:
                 if response.status == 200:
                     raw_json = json.loads(await response.read())
         with open("BotSettings.json", "w+") as file:
@@ -133,9 +133,14 @@ async def ping(ctx):
 @bot.command()
 @commands.is_owner()
 async def stop(ctx):
-    print("Bot has been turned off by: {}".format(ctx.message.author))
-    logger.warning("Bot has been turned off by: {}".format(ctx.author))
-    await bot.close()
+    try:
+        print("Bot has been turned off by: {}".format(ctx.author))
+        logger.warning("Bot has been turned off by: {}".format(ctx.author))
+
+        await bot.get_user(int(settings["Maintainer-ID"])).send("Bot has been turned off by: {}".format(ctx.author))
+
+    finally:
+        await bot.close()
 
 
 @bot.command()
