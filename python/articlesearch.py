@@ -77,43 +77,47 @@ async def update():
     async with aiohttp.ClientSession() as session:
         async with session.get("https://community.elitedangerous.com/") as response:
             html = Bs4(await response.text(), "html.parser")
+
     connection = await connect()
+
     uids = []
-    new_articles = []
+    new_articles = set()
+
     uid_records = await connection.fetch(f"""
                 SELECT "UID" FROM "{table}" ORDER BY "dateReleased" DESC LIMIT 50;
     """)
+
     for record in uid_records:
         uids.append(record["UID"])
+
     for entry in html.find_all("h3", {"class": "hiLite galnetNewsArticleTitle"}):
         entry = entry.find("a").get("href")[re.search("^/galnet/uid/", entry.find("a").get("href")).end():]
         if entry not in uids:
-            new_articles.append(entry)
+            new_articles.add(entry)
 
-    added_uids = []
+    added = []
     for article in new_articles:
-        # Catch repeat articles
-        if article in added_uids:
-            continue
-
-        added_uids.append(article)
-
         date_today = datetime.datetime.now()
+
         async with aiohttp.ClientSession() as session:
             async with session.get(f"https://community.elitedangerous.com/galnet/uid/{article}") as response:
                 bs4 = Bs4(await response.text(), "html.parser")
-        entry = bs4.find("h3", {"class": "hiLite galnetNewsArticleTitle"})
+                entry = bs4.find("h3", {"class": "hiLite galnetNewsArticleTitle"})
+
+        # Article Content
         entry_title = entry.get_text().strip().replace("'", "''")
         if entry_title == "" or entry_title is None:
             entry_title = "No Title Available"
 
+        text = unquote(bs4.find_all("p")[1].get_text().replace("'", "''"))
+
+        # Date info
         date_article = bs4.find("p").get_text()
         date_article = datetime.datetime.strptime(date_article, "%d %b %Y")
         if date_article.year >= 3300:
             date_article = date_article.replace(year=(date_article.year - GAME_YEAR_OFFSET))
 
-        text = unquote(bs4.find_all("p")[1].get_text().replace("'", "''"))
-
+        added.append(article)
         await connection.execute(f"""
             INSERT INTO "{table}"("Title", "UID", "dateReleased", "dateAdded", "Text") VALUES (
             $1, $2, $3, $4, $5);
@@ -121,7 +125,7 @@ async def update():
 
     await connection.close()
     if len(new_articles) > 0:
-        return len(new_articles), new_articles
+        return len(added), added
 
 
 async def search(terms):
